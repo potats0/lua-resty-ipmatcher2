@@ -101,7 +101,6 @@ pub extern "C" fn get(prefix_map_ptr: *mut c_void, ipv4_addr: u32, netmask: u8) 
     }
 
     Box::into_raw(prefix_map_box) as *mut c_void;
-    dbg!(&return_action);
     return_action
 }
 
