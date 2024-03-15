@@ -42,3 +42,9 @@ luac.out
 #
 t/servroot
 go
+
+prefix-trie/Cargo.lock
+prefix-trie/target
+prefix-trie/coverage
+prefix-trie/test
+prefix-trie/bindings.h
