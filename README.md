@@ -1,6 +1,6 @@
 # Name
 
-High-performance IP address matching for OpenResty Lua.
+High-performance IP address matching with prefix-trie for OpenResty Lua.
 
 # Table of Contents
 
@@ -185,6 +185,7 @@ Returns a `false` if the ip is not a valid IPv6 address.
 [Back to TOC](#table-of-contents)
 
 # Installation
+you need besure installed the rust stable version before compile the lua-resty-ipmatcher2
 
 ## From LuaRocks
 
