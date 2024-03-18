@@ -165,18 +165,28 @@ function _M.new()
     return setmetatable(self, mt)
 end
 
-function _M.insert_ipv4_with_mask(self, ip, action)
+function _M.insert_ipv4_with_mask(self, ip, action, delay)
     -- 该函数将一个CIDR格式的ipv4格式，插入到前缀树中，格式为"192.168.3.1/24", action 中，0代表什么都不做，1代表阻断，2代表白名单通过
     local prefix_trie = self.tree
     local net_addr, mask = split_ip(ip)
     -- 把网络地址(ipv4)转换成32uint数字
     local ipv4_bin_addr = parse_ipv4(net_addr)
+    -- delay 参数为老化时间，单位秒
+    local delay = delay or 0
+    if delay > 0 then
+        -- 使用闭包实现该功能
+        local handle = function()
+            self:remove_ipv4_with_mask(ip)
+        end
+        -- 添加一个ngx的定时器，老化时间触发，删除相对应的条目
+        ngx.timer.at(delay, handle)
+    end
     ipmatcher2.insert(prefix_trie, ipv4_bin_addr, mask, action)
 end
 
-function _M.insert_ipv4_host(self, ip, action)
+function _M.insert_ipv4_host(self, ip, action, delay)
     -- 该函数将一个主机ipv4地址，插入到前缀树中，格式为"192.168.3.1", action 中，0代表什么都不做，1代表阻断，2代表白名单通过
-    return self:insert_ipv4_with_mask(ip .. "32", action)
+    return self:insert_ipv4_with_mask(ip .. "/32", action, delay)
 end
 
 function _M.remove_ipv4_with_mask(self, ip)
@@ -190,7 +200,7 @@ end
 
 function _M.remove_host(self, ip)
     -- 该函数将一个主机的ipv4，从前缀树中删除，格式为"192.168.3.1/24"
-    return self:remove_ipv4_with_mask(ip .. "32")
+    return self:remove_ipv4_with_mask(ip .. "/32")
 end
 
 function _M.match_ipv4(self, ip)
