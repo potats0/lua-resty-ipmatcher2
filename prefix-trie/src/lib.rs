@@ -104,6 +104,25 @@ pub extern "C" fn get(prefix_map_ptr: *mut c_void, ipv4_addr: u32, netmask: u8) 
     return_action
 }
 
+#[no_mangle]
+pub extern "C" fn remove(prefix_map_ptr: *mut c_void, ipv4_addr: u32, netmask: u8) {
+    // 转换为 *mut PrefixMap<Ipv4Net, u32> 类型
+    let prefix_map_raw: *mut PrefixMap<Ipv4Net, u32> =
+        prefix_map_ptr as *mut PrefixMap<Ipv4Net, u32>;
+
+    // 将 *mut PrefixMap 转换为 Box<PrefixMap<Ipv4Net, u32>> 类型
+    let mut prefix_map_box: Box<PrefixMap<Ipv4Net, u32>> = unsafe { Box::from_raw(prefix_map_raw) };
+
+    let prefix = match Ipv4Net::new(Ipv4Addr::from(ipv4_addr), netmask) {
+        Ok(addr) => addr,
+        Err(_) => return,
+    };
+
+    prefix_map_box.remove(&prefix);
+
+    Box::into_raw(prefix_map_box) as *mut c_void;
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -115,5 +134,13 @@ mod tests {
         insert(map_ptr, 3232235776, 24, 1);
         let _a = get(map_ptr, 3232235777, 32);
         free_prefix_trie(map_ptr);
+    }
+
+    #[test]
+    fn test_2() {
+        let map_ptr: *mut c_void = new_prefix_trie();
+        insert(map_ptr, 3232235776, 24, 1);
+        remove(map_ptr, 3232235776, 24);
+        assert_eq!(get(map_ptr, 3232235777, 32), 0);
     }
 }
