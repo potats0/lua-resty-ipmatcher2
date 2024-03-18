@@ -63,19 +63,6 @@ do
 end
 _M.parse_ipv4 = parse_ipv4
 
-local parse_bin_ipv4
-do
-    local inet = ffi_new("unsigned int [1]")
-
-    function parse_bin_ipv4(ip)
-        if not ip or #ip ~= 4 then
-            return false
-        end
-
-        ffi_copy(inet, ip, 4)
-        return C.ntohl(inet[0])
-    end
-end
 
 local parse_ipv6
 do
@@ -104,24 +91,6 @@ do
     end
 end
 _M.parse_ipv6 = parse_ipv6
-
-local parse_bin_ipv6
-do
-    local inets = ffi_new("unsigned int [4]")
-
-    function parse_bin_ipv6(ip)
-        if not ip or #ip ~= 16 then
-            return false
-        end
-
-        ffi_copy(inets, ip, 16)
-        local inets_arr = new_tab(4, 0)
-        for i = 0, 3 do
-            insert_tab(inets_arr, C.ntohl(inets[i]))
-        end
-        return inets_arr
-    end
-end
 
 local function gc_free(self)
     -- if ngx.worker.exiting() then
