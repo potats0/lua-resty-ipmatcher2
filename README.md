@@ -1,6 +1,7 @@
 # Name
 
 High-performance IP address matching with prefix-trie for OpenResty Lua.
+support longest prefix match
 
 # Table of Contents
 
@@ -11,17 +12,21 @@ High-performance IP address matching with prefix-trie for OpenResty Lua.
   - [ipmatcher.new](#ipmatchernew)
     - [Usage](#usage)
     - [Example](#example)
-  - [ipmatcher.new\_with\_value](#ipmatchernew_with_value)
+  - [ipmatcher.insert\_ipv4\_host](#ipmatcherinsert_ipv4_host)
     - [Usage](#usage-1)
     - [Example](#example-1)
-  - [ip:match](#ipmatch)
+  - [ipmatcher.insert\_ipv4\_with\_mask](#ipmatcherinsert_ipv4_with_mask)
     - [Usage](#usage-2)
     - [Example](#example-2)
-  - [ip:match\_bin](#ipmatch_bin)
+  - [ipmatcher:match\_ipv4](#ipmatchermatch_ipv4)
     - [Usage](#usage-3)
     - [Example](#example-3)
-  - [ipmatcher.parse\_ipv4](#ipmatcherparse_ipv4)
-  - [ipmatcher.parse\_ipv6](#ipmatcherparse_ipv6)
+  - [ipmatcher:remove\_host](#ipmatcherremove_host)
+    - [Usage](#usage-4)
+    - [Example](#example-4)
+  - [ipmatcher:remove\_ipv4\_with\_mask](#ipmatcherremove_ipv4_with_mask)
+    - [Usage](#usage-5)
+    - [Example](#example-5)
 - [Installation](#installation)
   - [From LuaRocks](#from-luarocks)
   - [From Source](#from-source)
@@ -31,17 +36,12 @@ High-performance IP address matching with prefix-trie for OpenResty Lua.
 ```lua
 location / {
     content_by_lua_block {
-      local ipmatcher = require("resty.ipmatcher")
-      local ip = ipmatcher.new({
-          "127.0.0.1",
-          "192.168.0.0/16",
-          "::1",
-          "fe80::/32",
-      })
-
-      ngx.say(ip:match("127.0.0.1"))
-      ngx.say(ip:match("192.168.1.100"))
-      ngx.say(ip:match("::1"))
+            local ipmatcher = require "resty.ipmatcher"
+            local m = ipmatcher.new()
+            m:insert_ipv4_with_mask("192.168.3.1/24", 1)
+            m:remove_ipv4_with_mask("192.168.3.1/24")
+            local a = m:match_ipv4("192.168.3.1")
+            ngx.say(a)
     }
 }
 ```
@@ -56,131 +56,127 @@ Creates a new hash table to store IP addresses.
 
 ### Usage
 
-`ips` is a list of IPv4 or IPv6 IP addresses in a CIDR format (`{ip1, ip2, ip3, ...}`). 
-
 ```lua
-ok, err = ipmatcher.new(ips)
+ok = ipmatcher.new()
 ```
-
-Returns `nil` and the error if it fails to create a new `ipmatcher` instance. 
 
 ### Example
 
 ```lua
-local ip, err = ipmatcher.new({
-        "127.0.0.1", "192.168.0.0/16", "::1", "fe80::/16",
-    })
+local ip= ipmatcher.new()
 ```
 
 [Back to TOC](#table-of-contents)
 
-## ipmatcher.new_with_value
+## ipmatcher.insert_ipv4_host
 
-Creates a new hash table to store IP addresses and corresponding values.
+add a host ipv4 to prefix-trie
 
 ### Usage
-
-`ips` is a list of key-value pairs (`{[ip1] = val1, [ip2] = val2, ...}`), where each key is an IP address string (CIDR format for IPv4 and IPv6).
+ip is a ipv4 address such as '192.168.1.1'
+action is a number, such as 1 'allow' or 'deny' 2
+delay is a number of automatic aging, default is 0 whichmeans never auto-aging
 
 ```lua
-matcher, err = ipmatcher.new_with_value(ips)
+ipmatcher.insert_ipv4_host(ip, action, delay)
 ```
-
-Returns `nil` and the error if it fails to create a new `ipmatcher` instance. 
 
 ### Example
 
 ```lua
-local ip, err = ipmatcher.new_with_value({
-    ["127.0.0.1"] = {info = "a"},
-    ["192.168.0.0/16"] = {info = "b"},
-})
-local data, err = ip:match("192.168.0.1")
-print(data.info) -- "b"
-```
+local ip = ipmatcher.new()
+ip:insert_ipv4_host("192.168.3.1", 1, 1)
 
-If the IP address matches multiple values, the returned value can be either one of the values:
-
-```lua
-local ip, err = ipmatcher.new_with_value({
-    ["192.168.0.1"] = {info = "a"},
-    ["192.168.0.0/16"] = {info = "b"},
-})
-local data, err = ip:match("192.168.0.1")
-print(data.info) -- "a" or "b"
 ```
 
 [Back to TOC](#table-of-contents)
 
-## ip:match
+## ipmatcher.insert_ipv4_with_mask
 
-Checks if an IP address exists in the specified IP list.
+add a CIDR into a prefix-trie
 
 ### Usage
-
-`ip` is an IP address string.
+ip is a CIDR address such as '192.168.1.0/24'
+action is a number, such as 1 'allow' or 'deny' 2
+delay is a number of automatic aging, default is 0 whichmeans never auto-aging
 
 ```lua
-ok, err = ip:match(ip)
+ipmatcher.insert_ipv4_with_mask(ip, action, delay)
 ```
-
-Returns `true` or `value` if the specified `ip` exists in the list. Returns `false` if the `ip` does not exist in the list. And returns `false` and an error message if the IP address is invalid.
 
 ### Example
 
 ```lua
-local ip, err = ipmatcher.new({
-        "127.0.0.1", "192.168.0.0/16", "::1", "fe80::/16",
-    })
+local ip = ipmatcher.new()
+ip:insert_ipv4_with_mask("192.168.3.0/24", 1, 1)
 
-local ok, err = ip:match("127.0.0.1") -- true
 ```
 
 [Back to TOC](#table-of-contents)
 
-## ip:match_bin
 
-Checks if an IP address in binary format exists in the specified IP list.
+## ipmatcher:match_ipv4
+check whether a ipv4 address matches a prefix-trie
 
 ### Usage
-
-`bin_ip` is an IP address in binary format.
+ip is a host ipv4, "192.168.3.1"
 
 ```lua
-ok, err = ip:match_bin(bin_ip)
+local res = ipmatcher.match_ipv4(ip)
 ```
-
-Returns `true` if the specified `bin_ip` exists in the list. Returns `false` if it does not exist. Returns `nil` and an error message if `bin_ip` is invalid.
+return action of the ip.
 
 ### Example
 
 ```lua
-local ok, err = ip:match_bin(ngx.var.binary_remote_addr)
+local ip = ipmatcher.new()
+ip:insert_ipv4_with_mask("192.168.3.0/24", 1, 1)
+local res = ipmatcher.match_ipv4('192.168.3.1')
+local res = ipmatcher.match_ipv4('192.168.3.2')
+
+```
+[Back to TOC](#table-of-contents)
+
+
+## ipmatcher:remove_host
+remove a ipv4 host from the prefix-trie
+
+### Usage
+ip is a host ipv4, "192.168.3.1"
+
+```lua
+local res = ipmatcher.remove_host(ip)
+```
+
+### Example
+
+```lua
+local ip = ipmatcher.new()
+ip:insert_ipv4_host("192.168.3.1", 1, 1)
+ip:remove_host("192.168.3.1")
+
 ```
 
 [Back to TOC](#table-of-contents)
 
-## ipmatcher.parse_ipv4
+## ipmatcher:remove_ipv4_with_mask
+remove a CIDR from the prefix-trie
 
-Tries to parse an IPv4 address to a host byte order FFI `uint32_t` type integer.
-
-```lua
-ipmatcher.parse_ipv4(ip)
-```
-
-Returns `false` if the IP address is invalid.
-
-[Back to TOC](#table-of-contents)
-
-## ipmatcher.parse_ipv6
-
-Tries to parse an IPv6 address to a table with four host byte order FF1 `uint32_t` type integer. The IP address can be wrapped in square brackets like `[::1]`.
+### Usage
+ip is a CIDR ipv4, "192.168.3.1/24"
 
 ```lua
-ipmatcher.parse_ipv6(ip)
+local res = ipmatcher.remove_ipv4_with_mask(ip)
 ```
 
-Returns a `false` if the ip is not a valid IPv6 address.
+### Example
+
+```lua
+local ip = ipmatcher.new()
+ip:insert_ipv4_with_mask("192.168.3.0/24", 1, 1)
+ip:remove_ipv4_with_mask("192.168.3.0/24")
+
+```
 
 [Back to TOC](#table-of-contents)
 
@@ -190,7 +186,7 @@ you need besure installed the rust stable version before compile the lua-resty-i
 ## From LuaRocks
 
 ```shell
-luarocks install lua-resty-ipmatcher
+luarocks install lua-resty-ipmatcher2
 ```
 
 ## From Source
