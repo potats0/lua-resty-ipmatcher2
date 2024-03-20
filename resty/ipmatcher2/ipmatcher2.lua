@@ -21,7 +21,7 @@ void remove(void *prefix_map_ptr, uint32_t ipv4_addr, uint8_t netmask);
 ]]
 
 local _M = {
-    _VERSION = '0.01'
+    _VERSION = '0.02'
 }
 local function load_shared_lib(so_name)
     local string_gmatch = string.gmatch
